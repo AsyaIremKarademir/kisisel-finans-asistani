@@ -13,6 +13,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useFocusEffect } from '@react-navigation/native';
 import MonthSelector from '../components/MonthSelector';
 import { useMonth } from '../context/MonthContext';
+import { useAuth } from '../context/AuthContext';
 import { getBudgetsWithSpending, setBudget, removeBudget } from '../db/queries';
 import { formatMoney, parseAmount } from '../utils/format';
 import { colors } from '../theme';
@@ -20,13 +21,14 @@ import { colors } from '../theme';
 export default function BudgetsScreen() {
   const db = useSQLiteContext();
   const { monthKey } = useMonth();
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [editing, setEditing] = useState(null); // düzenlenen kategori
   const [limitText, setLimitText] = useState('');
 
   const load = useCallback(async () => {
-    setItems(await getBudgetsWithSpending(db, monthKey));
-  }, [db, monthKey]);
+    setItems(await getBudgetsWithSpending(db, user?.id, monthKey));
+  }, [db, user?.id, monthKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -45,13 +47,13 @@ export default function BudgetsScreen() {
       Alert.alert('Geçersiz tutar', 'Lütfen sıfırdan büyük bir limit gir.');
       return;
     }
-    await setBudget(db, editing.category_id, value);
+    await setBudget(db, user?.id, editing.category_id, value);
     setEditing(null);
     load();
   };
 
   const clearLimit = async () => {
-    await removeBudget(db, editing.category_id);
+    await removeBudget(db, user?.id, editing.category_id);
     setEditing(null);
     load();
   };

@@ -1,7 +1,7 @@
 // Veritabanı kurulumu: tablolar ve varsayılan kategoriler.
 // SQLiteProvider uygulama açılırken bu fonksiyonu bir kez çalıştırır.
 
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const DEFAULT_CATEGORIES = [
   // [ad, tür, renk]
@@ -68,8 +68,42 @@ export async function initDatabase(db) {
     });
   }
 
+  // v2: kullanıcılar ve oturum. İşlemler ve bütçeler kullanıcıya bağlanır.
+  // Eski kayıtların user_id'si NULL kalır; ilk üye olan kullanıcı bunları devralır.
+  if (currentVersion < 2) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS users (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        username      TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        password_hash TEXT NOT NULL,
+        salt          TEXT NOT NULL,
+        created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Açık oturum: en fazla tek satır
+      CREATE TABLE IF NOT EXISTS session (
+        id      INTEGER PRIMARY KEY CHECK (id = 1),
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE
+      );
+
+      ALTER TABLE transactions ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+      CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, date);
+
+      -- budgets'ın birincil anahtarı değiştiği için tablo yeniden oluşturulur
+      CREATE TABLE budgets_new (
+        user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        category_id   INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+        monthly_limit REAL NOT NULL CHECK (monthly_limit > 0),
+        UNIQUE (user_id, category_id)
+      );
+      INSERT INTO budgets_new (category_id, monthly_limit) SELECT category_id, monthly_limit FROM budgets;
+      DROP TABLE budgets;
+      ALTER TABLE budgets_new RENAME TO budgets;
+    `);
+  }
+
   // İleride tablo değiştirirsen: DB_VERSION'ı artır, buraya
-  // "if (currentVersion < 2) { ... }" şeklinde yeni adım ekle.
+  // "if (currentVersion < 3) { ... }" şeklinde yeni adım ekle.
 
   await db.execAsync(`PRAGMA user_version = ${DB_VERSION}`);
 }

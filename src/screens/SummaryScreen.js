@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import MonthSelector from '../components/MonthSelector';
 import PieChart from '../components/PieChart';
 import { useMonth } from '../context/MonthContext';
+import { useAuth } from '../context/AuthContext';
 import { getMonthTotals, getExpenseByCategory } from '../db/queries';
 import { formatMoney } from '../utils/format';
 import { colors } from '../theme';
@@ -12,16 +13,17 @@ import { colors } from '../theme';
 export default function SummaryScreen() {
   const db = useSQLiteContext();
   const { monthKey } = useMonth();
+  const { user } = useAuth();
   const [totals, setTotals] = useState({ income: 0, expense: 0, balance: 0 });
   const [byCategory, setByCategory] = useState([]);
 
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        setTotals(await getMonthTotals(db, monthKey));
-        setByCategory(await getExpenseByCategory(db, monthKey));
+        setTotals(await getMonthTotals(db, user?.id, monthKey));
+        setByCategory(await getExpenseByCategory(db, user?.id, monthKey));
       })();
-    }, [db, monthKey])
+    }, [db, user?.id, monthKey])
   );
 
   const savingRate = totals.income > 0 ? Math.round((totals.balance / totals.income) * 100) : null;

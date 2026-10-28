@@ -22,10 +22,12 @@ import {
   checkBudget,
 } from '../db/queries';
 import { formatMoney, formatDate, parseAmount, toDateKey, fromDateKey } from '../utils/format';
+import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
 
 export default function TransactionFormScreen({ navigation, route }) {
   const db = useSQLiteContext();
+  const { user } = useAuth();
   const editId = route.params?.id;
 
   const [type, setType] = useState('expense');
@@ -41,7 +43,7 @@ export default function TransactionFormScreen({ navigation, route }) {
     navigation.setOptions({ title: editId ? 'İşlemi Düzenle' : 'Yeni İşlem' });
     if (!editId) return;
     (async () => {
-      const t = await getTransactionById(db, editId);
+      const t = await getTransactionById(db, user?.id, editId);
       if (!t) return;
       setType(t.type);
       setAmountText(String(t.amount).replace('.', ','));
@@ -49,7 +51,7 @@ export default function TransactionFormScreen({ navigation, route }) {
       setDate(fromDateKey(t.date));
       setNote(t.note ?? '');
     })();
-  }, [db, editId, navigation]);
+  }, [db, user?.id, editId, navigation]);
 
   // Tür değişince o türün kategorilerini yükle
   useEffect(() => {
@@ -74,12 +76,12 @@ export default function TransactionFormScreen({ navigation, route }) {
     const dateKey = toDateKey(date);
     const data = { type, amount, categoryId, date: dateKey, note: note.trim() };
 
-    if (editId) await updateTransaction(db, editId, data);
-    else await addTransaction(db, data);
+    if (editId) await updateTransaction(db, user?.id, editId, data);
+    else await addTransaction(db, user?.id, data);
 
     // Gider ise bütçe kontrolü yap
     if (type === 'expense') {
-      const budget = await checkBudget(db, categoryId, dateKey.slice(0, 7));
+      const budget = await checkBudget(db, user?.id, categoryId, dateKey.slice(0, 7));
       if (budget && budget.ratio >= 1) {
         Alert.alert(
           '⚠️ Bütçe aşıldı',
@@ -107,7 +109,7 @@ export default function TransactionFormScreen({ navigation, route }) {
         text: 'Sil',
         style: 'destructive',
         onPress: async () => {
-          await deleteTransaction(db, editId);
+          await deleteTransaction(db, user?.id, editId);
           navigation.goBack();
         },
       },

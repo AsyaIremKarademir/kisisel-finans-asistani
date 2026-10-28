@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import MonthSelector from '../components/MonthSelector';
 import TransactionItem from '../components/TransactionItem';
 import { useMonth } from '../context/MonthContext';
+import { useAuth } from '../context/AuthContext';
 import { getTransactionsByMonth, getMonthTotals, deleteTransaction } from '../db/queries';
 import { formatMoney } from '../utils/format';
 import { colors } from '../theme';
@@ -12,13 +13,14 @@ import { colors } from '../theme';
 export default function TransactionsScreen({ navigation }) {
   const db = useSQLiteContext();
   const { monthKey } = useMonth();
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [totals, setTotals] = useState({ income: 0, expense: 0, balance: 0 });
 
   const load = useCallback(async () => {
-    setTransactions(await getTransactionsByMonth(db, monthKey));
-    setTotals(await getMonthTotals(db, monthKey));
-  }, [db, monthKey]);
+    setTransactions(await getTransactionsByMonth(db, user?.id, monthKey));
+    setTotals(await getMonthTotals(db, user?.id, monthKey));
+  }, [db, user?.id, monthKey]);
 
   // Ekran her öne geldiğinde (ör. form ekranından dönünce) listeyi yenile
   useFocusEffect(
@@ -34,7 +36,7 @@ export default function TransactionsScreen({ navigation }) {
         text: 'Sil',
         style: 'destructive',
         onPress: async () => {
-          await deleteTransaction(db, item.id);
+          await deleteTransaction(db, user?.id, item.id);
           load();
         },
       },
