@@ -180,6 +180,57 @@ export async function generateRecurring(db, userId, todayKey) {
   return created;
 }
 
+// ---------- Döviz kurları ----------
+// Favoriler en üstte, sonra sık kullanılan kurlar, sonra TCMB sırası
+const POPULAR_CURRENCIES = ['USD', 'EUR', 'GBP', 'CHF'];
+
+export async function getCachedRates(db, userId) {
+  const meta = await db.getFirstAsync('SELECT bulletin_date, fetched_at FROM exchange_meta WHERE id = 1');
+  const rates = await db.getAllAsync(
+    `SELECT r.*, (f.code IS NOT NULL) AS is_favorite
+       FROM exchange_rates r
+       LEFT JOIN favorite_currencies f ON f.code = r.code AND f.user_id = ?
+      ORDER BY is_favorite DESC,
+               CASE r.code ${POPULAR_CURRENCIES.map((c, i) => `WHEN '${c}' THEN ${i}`).join(' ')} ELSE 99 END,
+               r.sort_order`,
+    userId
+  );
+  return { meta, rates };
+}
+
+// TCMB'den gelen kurlarla önbelleği tamamen yeniler
+export async function saveRates(db, { bulletinDate, rates }) {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM exchange_rates');
+    for (const [i, r] of rates.entries()) {
+      await db.runAsync(
+        'INSERT INTO exchange_rates (code, name, buying, selling, sort_order) VALUES (?, ?, ?, ?, ?)',
+        r.code,
+        r.name,
+        r.buying,
+        r.selling,
+        i
+      );
+    }
+    await db.runAsync(
+      'INSERT OR REPLACE INTO exchange_meta (id, bulletin_date, fetched_at) VALUES (1, ?, ?)',
+      bulletinDate,
+      Date.now()
+    );
+  });
+}
+
+export function setFavoriteCurrency(db, userId, code, favorite) {
+  if (favorite) {
+    return db.runAsync(
+      'INSERT OR IGNORE INTO favorite_currencies (user_id, code) VALUES (?, ?)',
+      userId,
+      code
+    );
+  }
+  return db.runAsync('DELETE FROM favorite_currencies WHERE user_id = ? AND code = ?', userId, code);
+}
+
 // ---------- Özet ----------
 export async function getMonthTotals(db, userId, monthKey) {
   const row = await db.getFirstAsync(

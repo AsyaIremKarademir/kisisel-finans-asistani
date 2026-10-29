@@ -14,6 +14,13 @@ export function formatMoney(value) {
   return `${n < 0 ? '-' : ''}${withDots},${dec} ₺`;
 }
 
+// Kur gösterimi: 49.6997 → "49,6997"; küçük değerlerde (ör. KRW) daha çok basamak
+export function formatRate(value) {
+  const digits = value < 1 ? 5 : 4;
+  const [int, dec] = Number(value).toFixed(digits).split('.');
+  return `${int.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${dec}`;
+}
+
 // Kullanıcının yazdığı "1.250,50" veya "1250.5" gibi metni sayıya çevirir
 export function parseAmount(text) {
   if (!text) return NaN;

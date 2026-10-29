@@ -1,7 +1,7 @@
 // Veritabanı kurulumu: tablolar ve varsayılan kategoriler.
 // SQLiteProvider uygulama açılırken bu fonksiyonu bir kez çalıştırır.
 
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 const DEFAULT_CATEGORIES = [
   // [ad, tür, renk]
@@ -124,8 +124,35 @@ export async function initDatabase(db) {
     `);
   }
 
+  // v4: TCMB döviz kurları (internet yokken son kurları göstermek için önbellek)
+  // ve kullanıcının takip ettiği (favori) kurlar.
+  if (currentVersion < 4) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS exchange_rates (
+        code       TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        buying     REAL NOT NULL,
+        selling    REAL NOT NULL,
+        sort_order INTEGER NOT NULL
+      );
+
+      -- Son başarılı güncelleme: en fazla tek satır
+      CREATE TABLE IF NOT EXISTS exchange_meta (
+        id            INTEGER PRIMARY KEY CHECK (id = 1),
+        bulletin_date TEXT NOT NULL,       -- TCMB bülten tarihi 'YYYY-MM-DD'
+        fetched_at    INTEGER NOT NULL     -- ms cinsinden zaman damgası
+      );
+
+      CREATE TABLE IF NOT EXISTS favorite_currencies (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        code    TEXT NOT NULL,
+        PRIMARY KEY (user_id, code)
+      );
+    `);
+  }
+
   // İleride tablo değiştirirsen: DB_VERSION'ı artır, buraya
-  // "if (currentVersion < 4) { ... }" şeklinde yeni adım ekle.
+  // "if (currentVersion < 5) { ... }" şeklinde yeni adım ekle.
 
   await db.execAsync(`PRAGMA user_version = ${DB_VERSION}`);
 }
