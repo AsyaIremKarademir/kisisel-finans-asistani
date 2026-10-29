@@ -15,6 +15,7 @@ import TransactionsScreen from './src/screens/TransactionsScreen';
 import TransactionFormScreen from './src/screens/TransactionFormScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
 import BudgetsScreen from './src/screens/BudgetsScreen';
+import RecurringScreen from './src/screens/RecurringScreen';
 import { colors } from './src/theme';
 
 const Stack = createNativeStackNavigator();
@@ -64,6 +65,11 @@ function MainTabs() {
         name="Budgets"
         component={BudgetsScreen}
         options={{ title: 'Bütçeler', tabBarIcon: tabIcon('🎯') }}
+      />
+      <Tab.Screen
+        name="Recurring"
+        component={RecurringScreen}
+        options={{ title: 'Tekrarlar', tabBarIcon: tabIcon('🔁') }}
       />
     </Tab.Navigator>
   );

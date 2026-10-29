@@ -40,6 +40,13 @@ export function shiftMonth(monthKey, delta) {
   return toMonthKey(new Date(y, m - 1 + delta, 1));
 }
 
+// Ayın belirli günü: 'YYYY-MM' + 31 → o ayda 31 yoksa ayın son günü
+export function monthDayKey(monthKey, day) {
+  const [y, m] = monthKey.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  return `${monthKey}-${pad(Math.min(day, lastDay))}`;
+}
+
 export function monthLabel(monthKey) {
   const [y, m] = monthKey.split('-').map(Number);
   return `${MONTHS_TR[m - 1]} ${y}`;

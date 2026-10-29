@@ -1,5 +1,6 @@
 // Tüm SQL sorguları burada. Ekranlar doğrudan SQL yazmaz, bu fonksiyonları çağırır.
 // İşlem ve bütçe sorguları userId alır; her kullanıcı yalnızca kendi verisini görür.
+import { monthDayKey, shiftMonth } from '../utils/format';
 
 // ---------- Kullanıcılar ----------
 export function getUserByUsername(db, username) {
@@ -68,15 +69,16 @@ export function getTransactionById(db, userId, id) {
   return db.getFirstAsync('SELECT * FROM transactions WHERE id = ? AND user_id = ?', id, userId);
 }
 
-export async function addTransaction(db, userId, { type, amount, categoryId, date, note }) {
+export async function addTransaction(db, userId, { type, amount, categoryId, date, note, recurringId }) {
   const result = await db.runAsync(
-    'INSERT INTO transactions (user_id, type, amount, category_id, date, note) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO transactions (user_id, type, amount, category_id, date, note, recurring_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
     userId,
     type,
     amount,
     categoryId,
     date,
-    note || null
+    note || null,
+    recurringId ?? null
   );
   return result.lastInsertRowId;
 }
@@ -96,6 +98,86 @@ export function updateTransaction(db, userId, id, { type, amount, categoryId, da
 
 export function deleteTransaction(db, userId, id) {
   return db.runAsync('DELETE FROM transactions WHERE id = ? AND user_id = ?', id, userId);
+}
+
+// ---------- Tekrarlayan işlemler ----------
+export function getRecurring(db, userId) {
+  return db.getAllAsync(
+    `SELECT r.*, c.name AS category_name, c.color AS category_color
+       FROM recurring r
+       JOIN categories c ON c.id = r.category_id
+      WHERE r.user_id = ?
+      ORDER BY r.type DESC, r.day_of_month, r.id`,
+    userId
+  );
+}
+
+// Girilen işlemi kaydeder ve her ay aynı gün tekrarlanmasını sağlar.
+// Bu işlem ilk tekrar sayılır; sonraki kayıt bir sonraki ay oluşturulur.
+export async function addRecurringTransaction(db, userId, { type, amount, categoryId, date, note }) {
+  const [year, month, day] = date.split('-');
+  await db.withTransactionAsync(async () => {
+    const result = await db.runAsync(
+      `INSERT INTO recurring (user_id, type, amount, category_id, day_of_month, note, next_month)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      userId,
+      type,
+      amount,
+      categoryId,
+      Number(day),
+      note || null,
+      shiftMonth(`${year}-${month}`, 1)
+    );
+    await addTransaction(db, userId, {
+      type,
+      amount,
+      categoryId,
+      date,
+      note,
+      recurringId: result.lastInsertRowId,
+    });
+  });
+}
+
+export function updateRecurringAmount(db, userId, id, amount) {
+  return db.runAsync('UPDATE recurring SET amount = ? WHERE id = ? AND user_id = ?', amount, id, userId);
+}
+
+// Tekrarı durdurur; daha önce oluşturulmuş işlemler silinmez.
+export function deleteRecurring(db, userId, id) {
+  return db.runAsync('DELETE FROM recurring WHERE id = ? AND user_id = ?', id, userId);
+}
+
+// Günü gelmiş (todayKey dahil) ama henüz oluşturulmamış tekrar kayıtlarını ekler.
+// Uygulama aylarca açılmasa bile aradaki her ay için bir kayıt oluşur.
+export async function generateRecurring(db, userId, todayKey) {
+  let created = 0;
+  await db.withTransactionAsync(async () => {
+    const rules = await db.getAllAsync(
+      'SELECT * FROM recurring WHERE user_id = ? AND next_month <= ?',
+      userId,
+      todayKey.slice(0, 7)
+    );
+    for (const rule of rules) {
+      let month = rule.next_month;
+      while (monthDayKey(month, rule.day_of_month) <= todayKey) {
+        await addTransaction(db, userId, {
+          type: rule.type,
+          amount: rule.amount,
+          categoryId: rule.category_id,
+          date: monthDayKey(month, rule.day_of_month),
+          note: rule.note,
+          recurringId: rule.id,
+        });
+        created++;
+        month = shiftMonth(month, 1);
+      }
+      if (month !== rule.next_month) {
+        await db.runAsync('UPDATE recurring SET next_month = ? WHERE id = ?', month, rule.id);
+      }
+    }
+  });
+  return created;
 }
 
 // ---------- Özet ----------

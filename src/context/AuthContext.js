@@ -9,7 +9,9 @@ import {
   getSessionUser,
   saveSession,
   clearSession,
+  generateRecurring,
 } from '../db/queries';
+import { toDateKey } from '../utils/format';
 
 const AuthContext = createContext(null);
 
@@ -32,12 +34,20 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // { id, username }
   const [loading, setLoading] = useState(true);
 
+  // Ekranlar açılmadan önce günü gelmiş tekrarlayan işlemleri oluştur
+  const enter = async (u) => {
+    await generateRecurring(db, u.id, toDateKey(new Date()));
+    setUser(u);
+  };
+
   // Uygulama açılırken önceki oturumu geri yükle
   useEffect(() => {
     (async () => {
-      setUser((await getSessionUser(db)) ?? null);
+      const u = await getSessionUser(db);
+      if (u) await enter(u);
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db]);
 
   const login = async (username, password) => {
@@ -47,7 +57,7 @@ export function AuthProvider({ children }) {
       throw new AuthError('Şifre hatalı.', 'wrong_password');
     }
     await saveSession(db, row.id);
-    setUser({ id: row.id, username: row.username });
+    await enter({ id: row.id, username: row.username });
   };
 
   const register = async (username, password) => {
@@ -58,7 +68,7 @@ export function AuthProvider({ children }) {
     const passwordHash = await hashPassword(password, salt);
     const id = await createUser(db, { username, passwordHash, salt });
     await saveSession(db, id);
-    setUser({ id, username });
+    await enter({ id, username });
   };
 
   const logout = async () => {

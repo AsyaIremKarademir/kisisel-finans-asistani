@@ -14,6 +14,7 @@ export default function TransactionItem({ item, onPress, onLongPress }) {
       <View style={{ flex: 1 }}>
         <Text style={styles.category}>{item.category_name}</Text>
         <Text style={styles.meta} numberOfLines={1}>
+          {item.recurring_id != null ? '🔁 ' : ''}
           {formatDate(item.date)}
           {item.note ? ` · ${item.note}` : ''}
         </Text>

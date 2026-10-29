@@ -1,7 +1,7 @@
 // Veritabanı kurulumu: tablolar ve varsayılan kategoriler.
 // SQLiteProvider uygulama açılırken bu fonksiyonu bir kez çalıştırır.
 
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const DEFAULT_CATEGORIES = [
   // [ad, tür, renk]
@@ -102,8 +102,30 @@ export async function initDatabase(db) {
     `);
   }
 
+  // v3: her ay tekrarlanan işlemler (kira, maaş, abonelik...).
+  // next_month: bir sonraki kaydın oluşturulacağı ay ('YYYY-MM').
+  // day_of_month ayın gün sayısından büyükse ayın son günü kullanılır (ör. 31 → 28 Şubat).
+  if (currentVersion < 3) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS recurring (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type         TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+        amount       REAL NOT NULL CHECK (amount > 0),
+        category_id  INTEGER NOT NULL REFERENCES categories(id),
+        day_of_month INTEGER NOT NULL CHECK (day_of_month BETWEEN 1 AND 31),
+        note         TEXT,
+        next_month   TEXT NOT NULL,
+        created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      -- Tekrardan otomatik oluşturulan işlemleri işaretler; tekrar silinirse kayıt kalır
+      ALTER TABLE transactions ADD COLUMN recurring_id INTEGER REFERENCES recurring(id) ON DELETE SET NULL;
+    `);
+  }
+
   // İleride tablo değiştirirsen: DB_VERSION'ı artır, buraya
-  // "if (currentVersion < 3) { ... }" şeklinde yeni adım ekle.
+  // "if (currentVersion < 4) { ... }" şeklinde yeni adım ekle.
 
   await db.execAsync(`PRAGMA user_version = ${DB_VERSION}`);
 }

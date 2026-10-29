@@ -6,6 +6,7 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  Switch,
   Alert,
   Platform,
   KeyboardAvoidingView,
@@ -20,6 +21,8 @@ import {
   updateTransaction,
   deleteTransaction,
   checkBudget,
+  addRecurringTransaction,
+  generateRecurring,
 } from '../db/queries';
 import { formatMoney, formatDate, parseAmount, toDateKey, fromDateKey } from '../utils/format';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +40,8 @@ export default function TransactionFormScreen({ navigation, route }) {
   const [note, setNote] = useState('');
   const [categories, setCategories] = useState([]);
   const [showPicker, setShowPicker] = useState(false);
+  const [repeat, setRepeat] = useState(false); // yalnızca yeni işlemde
+  const [fromRecurring, setFromRecurring] = useState(false);
 
   // Düzenleme modundaysa mevcut kaydı forma doldur
   useEffect(() => {
@@ -50,6 +55,7 @@ export default function TransactionFormScreen({ navigation, route }) {
       setCategoryId(t.category_id);
       setDate(fromDateKey(t.date));
       setNote(t.note ?? '');
+      setFromRecurring(t.recurring_id != null);
     })();
   }, [db, user?.id, editId, navigation]);
 
@@ -76,8 +82,15 @@ export default function TransactionFormScreen({ navigation, route }) {
     const dateKey = toDateKey(date);
     const data = { type, amount, categoryId, date: dateKey, note: note.trim() };
 
-    if (editId) await updateTransaction(db, user?.id, editId, data);
-    else await addTransaction(db, user?.id, data);
+    if (editId) {
+      await updateTransaction(db, user?.id, editId, data);
+    } else if (repeat) {
+      await addRecurringTransaction(db, user?.id, data);
+      // Geçmiş bir tarih seçildiyse aradaki ayların kayıtlarını da oluştur
+      await generateRecurring(db, user?.id, toDateKey(new Date()));
+    } else {
+      await addTransaction(db, user?.id, data);
+    }
 
     // Gider ise bütçe kontrolü yap
     if (type === 'expense') {
@@ -209,6 +222,31 @@ export default function TransactionFormScreen({ navigation, route }) {
           maxLength={100}
         />
 
+        {editId ? (
+          fromRecurring && (
+            <Text style={styles.recurringInfo}>
+              🔁 Bu kayıt tekrarlayan bir işlemden oluşturuldu. Buradaki değişiklik yalnızca bu ayı
+              etkiler; tekrarı Tekrarlar sekmesinden yönetebilirsin.
+            </Text>
+          )
+        ) : (
+          <View style={styles.repeatRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.repeatTitle}>Her ay tekrarla</Text>
+              <Text style={styles.repeatHint}>
+                {repeat
+                  ? `Her ayın ${date.getDate()}. günü otomatik eklenecek`
+                  : 'Kira, maaş, abonelik gibi düzenli kalemler için'}
+              </Text>
+            </View>
+            <Switch
+              value={repeat}
+              onValueChange={setRepeat}
+              trackColor={{ true: colors.primary }}
+            />
+          </View>
+        )}
+
         <Pressable style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.8 }]} onPress={save}>
           <Text style={styles.saveText}>{editId ? 'Güncelle' : 'Kaydet'}</Text>
         </Pressable>
@@ -255,6 +293,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
   },
   chipText: { fontSize: 14, color: colors.text },
+  repeatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 16,
+  },
+  repeatTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
+  repeatHint: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  recurringInfo: { fontSize: 12, color: colors.muted, marginTop: 16, lineHeight: 17 },
   saveBtn: {
     backgroundColor: colors.primary,
     borderRadius: 12,

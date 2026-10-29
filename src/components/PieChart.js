@@ -29,15 +29,24 @@ export default function PieChart({ data, size = 200, holeColor = '#fff' }) {
     );
   }
 
-  let angle = 0;
+  // Her dilimin başlangıç açısı, kendinden önceki dilimlerin toplamıdır
+  const slices = data.reduce((acc, d) => {
+    const start = acc.length ? acc[acc.length - 1].end : 0;
+    acc.push({ color: d.color, start, end: start + (d.value / total) * 360 });
+    return acc;
+  }, []);
+
   return (
     <Svg width={size} height={size}>
-      {data.map((d, i) => {
-        const sweep = (d.value / total) * 360;
-        const path = arcPath(r, r, r, angle, angle + sweep);
-        angle += sweep;
-        return <Path key={i} d={path} fill={d.color} stroke={holeColor} strokeWidth={1.5} />;
-      })}
+      {slices.map((s, i) => (
+        <Path
+          key={i}
+          d={arcPath(r, r, r, s.start, s.end)}
+          fill={s.color}
+          stroke={holeColor}
+          strokeWidth={1.5}
+        />
+      ))}
       <Circle cx={r} cy={r} r={r * 0.55} fill={holeColor} />
     </Svg>
   );
