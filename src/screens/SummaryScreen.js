@@ -96,7 +96,7 @@ function Row({ label, value, color, bold }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   card: {
     backgroundColor: colors.card,
     marginHorizontal: 16,

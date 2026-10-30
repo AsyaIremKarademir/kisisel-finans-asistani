@@ -1,7 +1,7 @@
 // Veritabanı kurulumu: tablolar ve varsayılan kategoriler.
 // SQLiteProvider uygulama açılırken bu fonksiyonu bir kez çalıştırır.
 
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 const DEFAULT_CATEGORIES = [
   // [ad, tür, renk]
@@ -151,8 +151,18 @@ export async function initDatabase(db) {
     `);
   }
 
+  // v5: kullanıcıya özel görünüm ayarları (arka plan rengi)
+  if (currentVersion < 5) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS user_settings (
+        user_id          INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        background_color TEXT              -- '#RRGGBB'; NULL ise varsayılan renk
+      );
+    `);
+  }
+
   // İleride tablo değiştirirsen: DB_VERSION'ı artır, buraya
-  // "if (currentVersion < 5) { ... }" şeklinde yeni adım ekle.
+  // "if (currentVersion < 6) { ... }" şeklinde yeni adım ekle.
 
   await db.execAsync(`PRAGMA user_version = ${DB_VERSION}`);
 }

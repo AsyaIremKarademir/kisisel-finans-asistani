@@ -156,7 +156,7 @@ function RecurringRow({ item, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   summary: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -186,7 +186,7 @@ function RateRow({ item, selected, onPress, onToggleFavorite }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   info: { fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 12 },
   error: {
     fontSize: 13,

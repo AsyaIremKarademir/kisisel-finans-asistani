@@ -10,6 +10,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDatabase } from './src/db/database';
 import { MonthProvider } from './src/context/MonthContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import MenuButton from './src/components/MenuButton';
 import AuthScreen from './src/screens/AuthScreen';
 import TransactionsScreen from './src/screens/TransactionsScreen';
 import TransactionFormScreen from './src/screens/TransactionFormScreen';
@@ -17,6 +19,7 @@ import SummaryScreen from './src/screens/SummaryScreen';
 import BudgetsScreen from './src/screens/BudgetsScreen';
 import RecurringScreen from './src/screens/RecurringScreen';
 import RatesScreen from './src/screens/RatesScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import { colors } from './src/theme';
 
 const Stack = createNativeStackNavigator();
@@ -42,14 +45,16 @@ function LogoutButton() {
 }
 
 function MainTabs() {
+  const { background } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
-        headerStyle: { backgroundColor: colors.background },
+        headerStyle: { backgroundColor: background },
         headerShadowVisible: false,
+        headerLeft: () => <MenuButton />,
         headerRight: () => <LogoutButton />,
-        sceneStyle: { backgroundColor: colors.background },
+        sceneStyle: { backgroundColor: background },
       }}
     >
       <Tab.Screen
@@ -92,11 +97,12 @@ function Loading() {
 // Giriş yapılmamışsa yalnızca giriş ekranı, yapılmışsa uygulama ekranları tanımlıdır.
 function RootNavigator() {
   const { user, loading } = useAuth();
+  const { background } = useTheme();
   if (loading) return <Loading />;
 
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator screenOptions={{ contentStyle: { backgroundColor: background } }}>
         {user ? (
           <>
             <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
@@ -104,6 +110,15 @@ function RootNavigator() {
               name="TransactionForm"
               component={TransactionFormScreen}
               options={{ title: 'Yeni İşlem', presentation: 'modal' }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{
+                title: 'Ayarlar',
+                headerStyle: { backgroundColor: background },
+                headerShadowVisible: false,
+              }}
             />
           </>
         ) : (
@@ -120,10 +135,12 @@ export default function App() {
       <Suspense fallback={<Loading />}>
         <SQLiteProvider databaseName="finans.db" onInit={initDatabase} useSuspense>
           <AuthProvider>
-            <MonthProvider>
-              <RootNavigator />
-              <StatusBar style="dark" />
-            </MonthProvider>
+            <ThemeProvider>
+              <MonthProvider>
+                <RootNavigator />
+                <StatusBar style="dark" />
+              </MonthProvider>
+            </ThemeProvider>
           </AuthProvider>
         </SQLiteProvider>
       </Suspense>

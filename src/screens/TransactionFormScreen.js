@@ -262,7 +262,7 @@ export default function TransactionFormScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: 16 },
+  container: { flex: 1, padding: 16 },
   segment: {
     flexDirection: 'row',
     backgroundColor: colors.card,

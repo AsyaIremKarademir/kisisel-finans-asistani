@@ -43,6 +43,21 @@ export function clearSession(db) {
   return db.runAsync('DELETE FROM session');
 }
 
+// ---------- Ayarlar ----------
+export function getUserSettings(db, userId) {
+  return db.getFirstAsync('SELECT * FROM user_settings WHERE user_id = ?', userId);
+}
+
+// color null ise varsayılan renge dönülür
+export function saveBackgroundColor(db, userId, color) {
+  return db.runAsync(
+    `INSERT INTO user_settings (user_id, background_color) VALUES (?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET background_color = excluded.background_color`,
+    userId,
+    color
+  );
+}
+
 // ---------- Kategoriler ----------
 export function getCategories(db, type) {
   if (type) {

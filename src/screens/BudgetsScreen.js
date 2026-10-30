@@ -140,7 +140,7 @@ function BudgetRow({ item, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   hint: { fontSize: 12, color: colors.muted, textAlign: 'center', marginBottom: 8 },
   card: {
     backgroundColor: colors.card,

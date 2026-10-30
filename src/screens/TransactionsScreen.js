@@ -102,7 +102,7 @@ function SummaryBox({ label, value, color }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   summary: { flexDirection: 'row', paddingHorizontal: 12, marginBottom: 12 },
   box: {
     flex: 1,
